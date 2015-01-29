@@ -1,2 +1,2 @@
 # GraficacionBasica
-Mis tareas y ejercicios de Graficacion Basica
+Mis tareas y ejercicios de Graficacion Basica.
