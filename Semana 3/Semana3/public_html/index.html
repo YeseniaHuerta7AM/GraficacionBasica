@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+
+<head>
+<title>Aprende webGL &mdash; Leccion 1</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="js/glMatrix-0.9.5.min.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+    
+    varying vec4 vcolor; //Semana 3
+
+    void main(void) {
+        //gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_FragColor = vcolor; //Semana 3 - (Vamos a pasarle el color que tiene en vcolor)
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor; //Semana 3 - Cada vertice tendrá su color.
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    
+    varying vec4 vcolor; //Semana 3
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vcolor = aVertexColor; //Semana 3 - Se va a igualar
+    }
+</script>
+
+
+<script type="text/javascript">
+
+    var gl;
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {
+        }
+        if (!gl) {
+            alert("No puede iniciarse webGL en este navegador");
+        }
+    }
+
+
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var str = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                str += k.textContent;
+            }
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+
+    var shaderProgram;
+
+    function initShaders() {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("No pueden iniciarse los shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+        
+        shaderProgram.vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor"); //Semana 3
+        gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute); //Semana 3
+
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+    }
+
+
+    var mvMatrix = mat4.create();
+    var pMatrix = mat4.create();
+
+    function setMatrixUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+    }
+
+
+
+    var triangleVertexPositionBuffer;
+    var pentagonVertexPositionBuffer;
+    var hexagonVertexPositionBuffer;
+
+    function initBuffers() {
+        triangleVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        var vertices = [
+             0.0,  2.0,  0.0,
+            -2.0, -2.0,  0.0,
+             2.0, -2.0,  0.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        triangleVertexPositionBuffer.itemSize = 3;
+        triangleVertexPositionBuffer.numItems = 3;
+        
+        triangleVertexColorBuffer = gl.createBuffer(); //Semana 3
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexColorBuffer); //Semana 3
+        
+        var colors = [
+             1.0, 0.0, 0.0, 1.0, //Semana 3
+             0.0, 1.0, 0.0, 1.0, //Semana 3
+             0.0, 0.0, 1.0, 1.0  //Semana 3
+        ]
+        
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW); //Semana 3
+        triangleVertexColorBuffer.itemSize = 4; //Semana 3
+        triangleVertexColorBuffer.numItems = 3; //Semana 3
+
+        pentagonVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, pentagonVertexPositionBuffer);
+        vertices = [
+             0.0, 2.5, 0.0,
+             2.5, 0.5, 0.0,
+             -2.5, 0.5, 0.0,
+             -1.5, -2.0, 0.0,
+             2.5, 0.5, 0.0,
+             1.5, -2.0, 0.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        pentagonVertexPositionBuffer.itemSize = 3;
+        pentagonVertexPositionBuffer.numItems = 6;
+        
+        pentagonVertexColorBuffer = gl.createBuffer(); //Semana 3
+        gl.bindBuffer(gl.ARRAY_BUFFER, pentagonVertexColorBuffer); //Semana 3
+        
+        colors = [
+             0.0, 1.0, 0.0, 1.0, //Semana 3 - Verde
+             1.0, 1.0, 1.0, 1.0, //Semana 3 - Blanco
+             0.0, 0.0, 1.0, 1.0,  //Semana 3 - Azul
+             1.0, 1.0, 1.0, 1.0, //Semana 3 - Blanco
+             1.0, 1.0, 1.0, 1.0, //Semana 3 - Blanco
+             1.0, 0.0, 0.0, 1.0 //Semana 3 - Rojo
+        ]
+        
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW); //Semana 3
+        pentagonVertexColorBuffer.itemSize = 4; //Semana 3
+        pentagonVertexColorBuffer.numItems = 6; //Semana 3
+        
+        hexagonVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, hexagonVertexPositionBuffer);
+        vertices = [
+            0.0, 2.5, 0.0,
+            2.5, 1.0, 0.0,
+            -2.5, 1.0, 0.0,
+            -2.5, -1.0, 0.0,
+            2.5, 1.0, 0.0,
+            2.5, -1.0, 0.0,
+            -2.5, -1.0, 0.0,
+            0.0, -2.5, 0.0
+        ];
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        hexagonVertexPositionBuffer.itemSize = 3;
+        hexagonVertexPositionBuffer.numItems = 8;
+        
+        hexagonVertexColorBuffer = gl.createBuffer(); //Semana 3
+        gl.bindBuffer(gl.ARRAY_BUFFER, hexagonVertexColorBuffer); //Semana 3
+        
+        colors = [
+             1.0, 1.0, 0.0, 1.0, //Semana 3 - Amarillo
+             1.0, 0.0, 1.0, 1.0, //Semana 3 - Morado
+             0.0, 1.0, 1.0, 1.0, //Semana 3 - Cyan
+             1.0, 0.0, 0.0, 1.0, //Semana 3 - Rojo
+             1.0, 0.0, 1.0, 1.0, //Semana 3 - Morado
+             0.0, 1.0, 0.0, 1.0, //Semana 3 - Verde
+             1.0, 0.0, 0.0, 1.0, //Semana 3 - Rojo
+             0.0, 0.0, 1.0, 1.0 //Semana 3 - Azul
+        ]
+        
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW); //Semana 3
+        hexagonVertexColorBuffer.itemSize = 4; //Semana 3
+        hexagonVertexColorBuffer.numItems = 8; //Semana 3
+    }
+
+
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        mat4.perspective(60, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+
+        mat4.identity(mvMatrix);
+
+        mat4.translate(mvMatrix, [-3, 0.0, -14.0]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexColorBuffer); //Semana 3
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, triangleVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0); //Semana 3
+        setMatrixUniforms();
+        gl.drawArrays(gl.TRIANGLES, 0, triangleVertexPositionBuffer.numItems);
+
+
+        mat4.translate(mvMatrix, [6.0, 0.0, 0.0]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, pentagonVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, pentagonVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, pentagonVertexColorBuffer); //Semana 3
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, pentagonVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0); //Semana 3
+        setMatrixUniforms();
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, pentagonVertexPositionBuffer.numItems);
+        
+        
+        mat4.translate(mvMatrix, [-3.0, 5.0, 0.0]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, hexagonVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, hexagonVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, hexagonVertexColorBuffer); //Semana 3
+        gl.vertexAttribPointer(shaderProgram.vertexColorAttribute, hexagonVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0); //Semana 3
+        setMatrixUniforms();
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, hexagonVertexPositionBuffer.numItems);
+    }
+
+
+
+    function webGLStart() {
+        var canvas = document.getElementById("leccion1-canvas");
+        initGL(canvas);
+        initShaders();
+        initBuffers();
+
+        gl.clearColor(0.5, 0.0, 1.0, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+
+        drawScene();
+    }
+
+
+</script>
+
+
+</head>
+
+
+<body onload="webGLStart();">
+
+    <canvas id="leccion1-canvas" style="border: none;" width="800" height="500"></canvas>
+
+</body>
+
+</html>
